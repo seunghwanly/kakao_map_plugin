@@ -75,7 +75,7 @@ class _KakaoMapState extends State<KakaoMap> {
     super.initState();
 
     late final PlatformWebViewControllerCreationParams params;
-    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+    if (Platform.isIOS) {
       params = WebKitWebViewControllerCreationParams(
         allowsInlineMediaPlayback: true,
         mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
