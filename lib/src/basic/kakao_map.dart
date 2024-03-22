@@ -68,6 +68,8 @@ class KakaoMap extends StatefulWidget {
 }
 
 class _KakaoMapState extends State<KakaoMap> {
+  late final WebViewController _webViewController;
+
   late final KakaoMapController _mapController;
 
   @override
@@ -75,7 +77,7 @@ class _KakaoMapState extends State<KakaoMap> {
     super.initState();
 
     late final PlatformWebViewControllerCreationParams params;
-    if (Platform.isIOS) {
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
       params = WebKitWebViewControllerCreationParams(
         allowsInlineMediaPlayback: true,
         mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
@@ -89,27 +91,39 @@ class _KakaoMapState extends State<KakaoMap> {
 
     addJavaScriptChannels(controller);
 
-    controller
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadHtmlString(_loadMap());
-
     if (controller.platform is AndroidWebViewController) {
       AndroidWebViewController.enableDebugging(true);
       (controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
 
-    _mapController = KakaoMapController(controller);
+    _webViewController = controller;
   }
 
   @override
   Widget build(BuildContext context) {
-    return WebViewWidget(
-      controller: _mapController.webViewController,
-      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-        Factory(() => EagerGestureRecognizer()),
-      },
-    );
+    return FutureBuilder<void>(
+        future: Future.wait([
+          _webViewController.setJavaScriptMode(JavaScriptMode.unrestricted),
+          _webViewController.loadHtmlString(_loadMap()),
+        ]),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done ||
+              !snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator.adaptive(),
+            );
+          }
+
+          _mapController = KakaoMapController(_webViewController);
+
+          return WebViewWidget(
+            controller: _mapController.webViewController,
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+              Factory(() => EagerGestureRecognizer()),
+            },
+          );
+        });
   }
 
   String _loadMap() {
