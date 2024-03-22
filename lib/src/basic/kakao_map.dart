@@ -70,7 +70,7 @@ class KakaoMap extends StatefulWidget {
 class _KakaoMapState extends State<KakaoMap> {
   late final WebViewController _webViewController;
 
-  late final KakaoMapController _mapController;
+  KakaoMapController? _mapController;
 
   @override
   void initState() {
@@ -118,7 +118,7 @@ class _KakaoMapState extends State<KakaoMap> {
           _mapController = KakaoMapController(_webViewController);
 
           return WebViewWidget(
-            controller: _mapController.webViewController,
+            controller: _mapController!.webViewController,
             gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
               Factory(() => EagerGestureRecognizer()),
             },
@@ -1005,13 +1005,13 @@ class _KakaoMapState extends State<KakaoMap> {
 
   @override
   void didUpdateWidget(KakaoMap oldWidget) {
-    _mapController.addPolyline(polylines: widget.polylines);
-    _mapController.addCircle(circles: widget.circles);
-    _mapController.addRectangle(rectangles: widget.rectangles);
-    _mapController.addPolygon(polygons: widget.polygons);
-    _mapController.addMarker(markers: widget.markers);
-    _mapController.addMarkerClusterer(clusterer: widget.clusterer);
-    _mapController.addCustomOverlay(customOverlays: widget.customOverlays);
+    _mapController?.addPolyline(polylines: widget.polylines);
+    _mapController?.addCircle(circles: widget.circles);
+    _mapController?.addRectangle(rectangles: widget.rectangles);
+    _mapController?.addPolygon(polygons: widget.polygons);
+    _mapController?.addMarker(markers: widget.markers);
+    _mapController?.addMarkerClusterer(clusterer: widget.clusterer);
+    _mapController?.addCustomOverlay(customOverlays: widget.customOverlays);
     super.didUpdateWidget(oldWidget);
   }
 
@@ -1019,8 +1019,8 @@ class _KakaoMapState extends State<KakaoMap> {
     controller
       ..addJavaScriptChannel('onMapCreated',
           onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapCreated != null) {
-          widget.onMapCreated!(_mapController);
+        if (widget.onMapCreated != null && _mapController != null) {
+          widget.onMapCreated!(_mapController!);
         }
       })
       ..addJavaScriptChannel('onMapTap',
