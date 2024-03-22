@@ -86,9 +86,9 @@ class KakaoMapController {
   }
 
   /// draw custom overlay
-  addCustomOverlay({List<CustomOverlay>? customOverlays}) async {
+  Future<void> addCustomOverlay({List<CustomOverlay>? customOverlays}) async {
     if (customOverlays != null) {
-      clearCustomOverlay();
+      await clearCustomOverlay();
 
       for (var customOverlay in customOverlays) {
         await _webViewController.runJavaScript(
@@ -132,8 +132,8 @@ class KakaoMapController {
   }
 
   /// clear custom overlay
-  clearCustomOverlay() {
-    _webViewController.runJavaScript('clearCustomOverlay();');
+  Future<void> clearCustomOverlay() {
+    return _webViewController.runJavaScript('clearCustomOverlay();');
   }
 
   /// move to center
