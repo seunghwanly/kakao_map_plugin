@@ -86,44 +86,35 @@ class _KakaoMapState extends State<KakaoMap> {
       params = const PlatformWebViewControllerCreationParams();
     }
 
-    final WebViewController controller =
-        WebViewController.fromPlatformCreationParams(params);
+    _webViewController = WebViewController.fromPlatformCreationParams(params);
 
-    addJavaScriptChannels(controller);
-
-    if (controller.platform is AndroidWebViewController) {
+    if (_webViewController.platform is AndroidWebViewController) {
       AndroidWebViewController.enableDebugging(true);
-      (controller.platform as AndroidWebViewController)
+      (_webViewController.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
 
-    _webViewController = controller;
+    Future.wait([
+      _webViewController.setJavaScriptMode(JavaScriptMode.unrestricted),
+      _webViewController.loadHtmlString(_loadMap()),
+      addJavaScriptChannels(_webViewController),
+    ]).then(
+      (_) {
+        if (!mounted) return;
+        _mapController = KakaoMapController(_webViewController);
+        setState(() {});
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-        future: Future.wait([
-          _webViewController.setJavaScriptMode(JavaScriptMode.unrestricted),
-          _webViewController.loadHtmlString(_loadMap()),
-        ]),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done ||
-              !snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator.adaptive(),
-            );
-          }
-
-          _mapController = KakaoMapController(_webViewController);
-
-          return WebViewWidget(
-            controller: _mapController!.webViewController,
-            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-              Factory(() => EagerGestureRecognizer()),
-            },
-          );
-        });
+    return WebViewWidget(
+      controller: _mapController?.webViewController ?? _webViewController,
+      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+        Factory(() => EagerGestureRecognizer()),
+      },
+    );
   }
 
   String _loadMap() {
@@ -1015,57 +1006,91 @@ class _KakaoMapState extends State<KakaoMap> {
     super.didUpdateWidget(oldWidget);
   }
 
-  void addJavaScriptChannels(WebViewController controller) {
-    controller
-      ..addJavaScriptChannel('onMapCreated',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapCreated != null && _mapController != null) {
-          widget.onMapCreated!(_mapController!);
-        }
-      })
-      ..addJavaScriptChannel('onMapTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapTap != null) {
+  Future<void> addJavaScriptChannels(WebViewController controller) async {
+    /// onMapCreated
+    if (widget.onMapCreated != null) {
+      await controller.addJavaScriptChannel(
+        'onMapCreated',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onMapCreated == null) return;
+          widget.onMapCreated!(
+            _mapController ?? KakaoMapController(controller),
+          );
+        },
+      );
+    }
+
+    /// onMapTap
+    if (widget.onMapTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMapTap',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onMapTap == null) return;
           widget.onMapTap!(LatLng.fromJson(jsonDecode(result.message)));
-        }
-      })
-      ..addJavaScriptChannel('onMapDoubleTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapDoubleTap != null) {
+        },
+      );
+    }
+
+    /// onMapDoubleTap
+    if (widget.onMapDoubleTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMapDoubleTap',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onMapDoubleTap == null) return;
           widget.onMapDoubleTap!(LatLng.fromJson(jsonDecode(result.message)));
-        }
-      })
-      ..addJavaScriptChannel('onMarkerTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMarkerTap != null) {
+        },
+      );
+    }
+
+    /// onMarkerTap
+    if (widget.onMarkerTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMarkerTap',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onMarkerTap == null) return;
           widget.onMarkerTap!(
             jsonDecode(result.message)['markerId'],
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
           );
-        }
-      })
-      ..addJavaScriptChannel('onMarkerClustererTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMarkerClustererTap != null) {
+        },
+      );
+    }
+
+    /// onMarkerClustererTap
+    if (widget.onMarkerClustererTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMarkerClustererTap',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onMarkerClustererTap == null) return;
           widget.onMarkerClustererTap!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
           );
-        }
-      })
-      ..addJavaScriptChannel('onCustomOverlayTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onCustomOverlayTap != null) {
+        },
+      );
+    }
+
+    /// onCustomOverlayTap
+    if (widget.onCustomOverlayTap != null) {
+      await controller.addJavaScriptChannel(
+        'onCustomOverlayTap',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onCustomOverlayTap == null) return;
           widget.onCustomOverlayTap!(
             jsonDecode(result.message)['customOverlayId'],
             LatLng.fromJson(jsonDecode(result.message)),
           );
-        }
-      })
-      ..addJavaScriptChannel('onMarkerDragChangeCallback',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMarkerDragChangeCallback != null) {
+        },
+      );
+    }
+
+    /// onMarkerDragChangeCallback
+    if (widget.onMarkerDragChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'onMarkerDragChangeCallback',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onMarkerDragChangeCallback == null) return;
           widget.onMarkerDragChangeCallback!(
             jsonDecode(result.message)['markerId'],
             LatLng.fromJson(jsonDecode(result.message)),
@@ -1074,38 +1099,55 @@ class _KakaoMapState extends State<KakaoMap> {
                 ? MarkerDragType.start
                 : MarkerDragType.end,
           );
-        }
-      })
-      ..addJavaScriptChannel('zoomStart',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onZoomChangeCallback != null) {
+        },
+      );
+    }
+
+    /// onZoomChangeCallback
+    if (widget.onZoomChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'zoomStart',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onZoomChangeCallback == null) return;
           widget.onZoomChangeCallback!(
             jsonDecode(result.message)['zoomLevel'],
             ZoomType.start,
           );
-        }
-      })
-      ..addJavaScriptChannel('zoomChanged',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onZoomChangeCallback != null) {
+        },
+      );
+
+      await controller.addJavaScriptChannel(
+        'zoomChanged',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onZoomChangeCallback == null) return;
           widget.onZoomChangeCallback!(
             jsonDecode(result.message)['zoomLevel'],
             ZoomType.end,
           );
-        }
-      })
-      ..addJavaScriptChannel('centerChanged',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onCenterChangeCallback != null) {
+        },
+      );
+    }
+
+    /// onCenterChangeCallback
+    if (widget.onCenterChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'centerChanged',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onCenterChangeCallback == null) return;
           widget.onCenterChangeCallback!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
           );
-        }
-      })
-      ..addJavaScriptChannel('boundsChanged',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onBoundsChangeCallback != null) {
+        },
+      );
+    }
+
+    /// onBoundsChangeCallback
+    if (widget.onBoundsChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'boundsChanged',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onBoundsChangeCallback == null) return;
           final latLngBounds = jsonDecode(result.message);
 
           final sw = latLngBounds['sw'];
@@ -1115,55 +1157,77 @@ class _KakaoMapState extends State<KakaoMap> {
             LatLng(sw['latitude'], sw['longitude']),
             LatLng(ne['latitude'], ne['longitude']),
           ));
-        }
-      })
-      ..addJavaScriptChannel('dragStart',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onDragChangeCallback != null) {
+        },
+      );
+    }
+
+    /// onDragChangeCallback
+    if (widget.onDragChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'dragStart',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onDragChangeCallback == null) return;
           widget.onDragChangeCallback!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
             DragType.start,
           );
-        }
-      })
-      ..addJavaScriptChannel('drag',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onDragChangeCallback != null) {
+        },
+      );
+
+      await controller.addJavaScriptChannel(
+        'drag',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onDragChangeCallback == null) return;
           widget.onDragChangeCallback!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
             DragType.move,
           );
-        }
-      })
-      ..addJavaScriptChannel('dragEnd',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onDragChangeCallback != null) {
+        },
+      );
+
+      await controller.addJavaScriptChannel(
+        'dragEnd',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onDragChangeCallback == null) return;
           widget.onDragChangeCallback!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
             DragType.end,
           );
-        }
-      })
-      ..addJavaScriptChannel('cameraIdle',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onCameraIdle != null) {
+        },
+      );
+    }
+
+    /// onCameraIdle
+    if (widget.onCameraIdle != null) {
+      await controller.addJavaScriptChannel(
+        'cameraIdle',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onCameraIdle == null) return;
           widget.onCameraIdle!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
           );
-        }
-      })
-      ..addJavaScriptChannel('tilesLoaded',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onTilesLoadedCallback != null) {
+        },
+      );
+    }
+
+    /// onTilesLoadedCallback
+    if (widget.onTilesLoadedCallback != null) {
+      await controller.addJavaScriptChannel(
+        'tilesLoaded',
+        onMessageReceived: (JavaScriptMessage result) {
+          if (widget.onTilesLoadedCallback == null) return;
           widget.onTilesLoadedCallback!(
             LatLng.fromJson(jsonDecode(result.message)),
             jsonDecode(result.message)['zoomLevel'],
           );
-        }
-      });
+        },
+      );
+    }
+
+    debugPrint('addJavaScriptChannels: all the channels are added');
   }
 }
