@@ -30,6 +30,7 @@ class KakaoMap extends StatefulWidget {
   final List<Marker>? markers;
   final List<CustomOverlay>? customOverlays;
   final Clusterer? clusterer;
+  final Widget? onProgress;
 
   const KakaoMap({
     Key? key,
@@ -61,6 +62,7 @@ class KakaoMap extends StatefulWidget {
     this.markers,
     this.clusterer,
     this.customOverlays,
+    this.onProgress,
   }) : super(key: key);
 
   @override
@@ -69,6 +71,8 @@ class KakaoMap extends StatefulWidget {
 
 class _KakaoMapState extends State<KakaoMap> {
   late final KakaoMapController _mapController;
+
+  bool isLoading = false;
 
   @override
   void initState() {
@@ -98,12 +102,27 @@ class _KakaoMapState extends State<KakaoMap> {
       (controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
+    if (widget.onProgress != null) {
+      controller.setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (p) {
+            if (!isLoading && p < 100) {
+              setState(() => isLoading = true);
+            } else if (isLoading && p >= 100) {
+              setState(() => isLoading = false);
+            }
+          },
+        ),
+      );
+    }
 
     _mapController = KakaoMapController(controller);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.onProgress != null && isLoading) return widget.onProgress!;
+
     return WebViewWidget(
       controller: _mapController.webViewController,
       gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
