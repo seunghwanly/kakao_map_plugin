@@ -509,11 +509,6 @@ class _KakaoMapState extends State<KakaoMap> {
 
     marker['id'] = markerId;
 
-    marker.setDraggable(draggable);
-
-    // 마커가 지도 위에 표시되도록 설정합니다
-    marker.setMap(map);
-
     if (imageSrc !== '' && imageSrc !== 'null') {
       let imageSize = new kakao.maps.Size(width, height); // 마커이미지의 크기입니다
 
@@ -594,9 +589,13 @@ class _KakaoMapState extends State<KakaoMap> {
         }
 
         onMarkerTap.postMessage(JSON.stringify(clickLatLng));
-
       });
     }
+
+    marker.setDraggable(draggable);
+
+    // 마커가 지도 위에 표시되도록 설정합니다
+    marker.setMap(map);
   }
 
   function setMarkerDraggable(markerId, draggable) {
