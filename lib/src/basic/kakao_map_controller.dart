@@ -56,9 +56,9 @@ class KakaoMapController {
   }
 
   /// draw markers
-  addMarker({List<Marker>? markers}) async {
+  Future<void> addMarker({List<Marker>? markers}) async {
     if (markers != null) {
-      clearMarker();
+      await clearMarker();
 
       for (var marker in markers) {
         final markerString =
@@ -69,9 +69,9 @@ class KakaoMapController {
   }
 
   /// draw markers
-  addMarkerClusterer({Clusterer? clusterer}) async {
+  Future<void> addMarkerClusterer({Clusterer? clusterer}) async {
     if (clusterer != null) {
-      clearMarkerClusterer();
+      await clearMarkerClusterer();
 
       final clustererString =
           "addMarkerClusterer('${jsonEncode(clusterer.markers)}', ${clusterer.gridSize}, ${clusterer.averageCenter}, ${clusterer.disableClickZoom}, ${clusterer.minLevel}, ${clusterer.minClusterSize}, '${jsonEncode(clusterer.texts)}', '${jsonEncode(clusterer.calculator)}', '${jsonEncode(clusterer.styles)}')";
@@ -86,9 +86,9 @@ class KakaoMapController {
   }
 
   /// draw custom overlay
-  addCustomOverlay({List<CustomOverlay>? customOverlays}) async {
+  Future<void> addCustomOverlay({List<CustomOverlay>? customOverlays}) async {
     if (customOverlays != null) {
-      clearCustomOverlay();
+      await clearCustomOverlay();
 
       for (var customOverlay in customOverlays) {
         await _webViewController.runJavaScript(
@@ -123,17 +123,17 @@ class KakaoMapController {
   }
 
   /// clear markers
-  clearMarker() {
-    _webViewController.runJavaScript('clearMarker();');
+  Future<void> clearMarker() async {
+    await _webViewController.runJavaScript('clearMarker();');
   }
 
-  clearMarkerClusterer() {
-    _webViewController.runJavaScript('clearMarkerClusterer();');
+  Future<void> clearMarkerClusterer() async {
+    await _webViewController.runJavaScript('clearMarkerClusterer();');
   }
 
   /// clear custom overlay
-  clearCustomOverlay() {
-    _webViewController.runJavaScript('clearCustomOverlay();');
+  Future<void> clearCustomOverlay() async {
+    await _webViewController.runJavaScript('clearCustomOverlay();');
   }
 
   /// move to center
@@ -149,8 +149,8 @@ class KakaoMapController {
   }
 
   /// set center latitude, longitude
-  setCenter(LatLng latLng) {
-    _webViewController.runJavaScript(
+  Future<void> setCenter(LatLng latLng) async {
+    await _webViewController.runJavaScript(
         "setCenter('${latLng.latitude}', '${latLng.longitude}');");
   }
 
@@ -162,8 +162,8 @@ class KakaoMapController {
   }
 
   /// set zoom level
-  setLevel(level) {
-    _webViewController.runJavaScript("setLevel('$level');");
+  Future<void> setLevel(level) async {
+    await _webViewController.runJavaScript("setLevel('$level');");
   }
 
   /// get zoom level
