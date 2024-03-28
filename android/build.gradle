@@ -25,7 +25,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    namespace 'kakao.map.plugin'
+    namespace 'kr.co.kkensu.kakao_map_plugin'
 
     compileSdkVersion 31
 
