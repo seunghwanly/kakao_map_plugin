@@ -33,7 +33,7 @@ class KakaoMap extends StatefulWidget {
   final Widget? onProgress;
 
   const KakaoMap({
-    Key? key,
+    super.key,
     this.onMapCreated,
     this.onMapTap,
     this.onMarkerTap,
@@ -63,14 +63,16 @@ class KakaoMap extends StatefulWidget {
     this.clusterer,
     this.customOverlays,
     this.onProgress,
-  }) : super(key: key);
+  });
 
   @override
   State<KakaoMap> createState() => _KakaoMapState();
 }
 
 class _KakaoMapState extends State<KakaoMap> {
-  late final KakaoMapController _mapController;
+  KakaoMapController? mapController;
+
+  late final WebViewController webViewController;
 
   bool isLoading = false;
 
@@ -91,32 +93,35 @@ class _KakaoMapState extends State<KakaoMap> {
     final WebViewController controller =
         WebViewController.fromPlatformCreationParams(params);
 
-    addJavaScriptChannels(controller);
-
-    controller
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadHtmlString(_loadMap());
-
     if (controller.platform is AndroidWebViewController) {
       AndroidWebViewController.enableDebugging(true);
       (controller.platform as AndroidWebViewController)
           .setMediaPlaybackRequiresUserGesture(false);
     }
-    if (widget.onProgress != null) {
-      controller.setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (p) {
-            if (!isLoading && p < 100) {
-              setState(() => isLoading = true);
-            } else if (isLoading && p >= 100) {
-              setState(() => isLoading = false);
-            }
-          },
-        ),
-      );
-    }
 
-    _mapController = KakaoMapController(controller);
+    webViewController = controller;
+
+    Future.wait([
+      controller.setJavaScriptMode(JavaScriptMode.unrestricted),
+      controller.loadHtmlString(_loadMap()),
+      addJavaScriptChannels(controller),
+      if (widget.onProgress != null)
+        controller.setNavigationDelegate(
+          NavigationDelegate(
+            onProgress: (p) {
+              if (!isLoading && p < 100) {
+                setState(() => isLoading = true);
+              } else if (isLoading && p >= 100) {
+                setState(() => isLoading = false);
+              }
+            },
+          ),
+        )
+    ]).then(
+      (_) => setState(
+        () => mapController = KakaoMapController(controller),
+      ),
+    );
   }
 
   @override
@@ -124,7 +129,7 @@ class _KakaoMapState extends State<KakaoMap> {
     if (widget.onProgress != null && isLoading) return widget.onProgress!;
 
     return WebViewWidget(
-      controller: _mapController.webViewController,
+      controller: mapController?.webViewController ?? webViewController,
       gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
         Factory(() => EagerGestureRecognizer()),
       },
@@ -152,7 +157,8 @@ class _KakaoMapState extends State<KakaoMap> {
 
     const options = {
       center: center,
-      level: ${widget.currentLevel}    };
+      level: ${widget.currentLevel}    
+    };
 
     map = new kakao.maps.Map(container, options);
 
@@ -1009,165 +1015,238 @@ class _KakaoMapState extends State<KakaoMap> {
 
   @override
   void didUpdateWidget(KakaoMap oldWidget) {
-    _mapController.addPolyline(polylines: widget.polylines);
-    _mapController.addCircle(circles: widget.circles);
-    _mapController.addRectangle(rectangles: widget.rectangles);
-    _mapController.addPolygon(polygons: widget.polygons);
-    _mapController.addMarker(markers: widget.markers);
-    _mapController.addMarkerClusterer(clusterer: widget.clusterer);
-    _mapController.addCustomOverlay(customOverlays: widget.customOverlays);
+    mapController?.addPolyline(polylines: widget.polylines);
+    mapController?.addCircle(circles: widget.circles);
+    mapController?.addRectangle(rectangles: widget.rectangles);
+    mapController?.addPolygon(polygons: widget.polygons);
+    mapController?.addMarker(markers: widget.markers);
+    mapController?.addMarkerClusterer(clusterer: widget.clusterer);
+    mapController?.addCustomOverlay(customOverlays: widget.customOverlays);
     super.didUpdateWidget(oldWidget);
   }
 
-  void addJavaScriptChannels(WebViewController controller) {
-    controller
-      ..addJavaScriptChannel('onMapCreated',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapCreated != null) {
-          widget.onMapCreated!(_mapController);
-        }
-      })
-      ..addJavaScriptChannel('onMapTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapTap != null) {
-          widget.onMapTap!(LatLng.fromJson(jsonDecode(result.message)));
-        }
-      })
-      ..addJavaScriptChannel('onMapDoubleTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMapDoubleTap != null) {
-          widget.onMapDoubleTap!(LatLng.fromJson(jsonDecode(result.message)));
-        }
-      })
-      ..addJavaScriptChannel('onMarkerTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMarkerTap != null) {
-          widget.onMarkerTap!(
-            jsonDecode(result.message)['markerId'],
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+  Future<void> addJavaScriptChannels(WebViewController controller) async {
+    /// [onMapTap] 콜백 등록
+    if (widget.onMapCreated != null) {
+      await controller.addJavaScriptChannel(
+        'onMapCreated',
+        onMessageReceived: (result) => widget.onMapCreated!(
+          mapController ?? KakaoMapController(controller),
+        ),
+      );
+    }
+
+    /// [onMapTap] 콜백 등록
+    if (widget.onMapTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMapTap',
+        onMessageReceived: (result) => widget.onMapTap!(
+          LatLng.fromJson(jsonDecode(result.message)),
+        ),
+      );
+    }
+
+    /// [onMapDoubleTap] 콜백 등록
+    if (widget.onMapDoubleTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMapDoubleTap',
+        onMessageReceived: (result) => widget.onMapDoubleTap!(
+          LatLng.fromJson(jsonDecode(result.message)),
+        ),
+      );
+    }
+
+    /// [onMarkerTap] 콜백 등록
+    if (widget.onMarkerTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMarkerTap',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onMarkerTap!(
+            map['markerId'] as String,
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
           );
-        }
-      })
-      ..addJavaScriptChannel('onMarkerClustererTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMarkerClustererTap != null) {
-          widget.onMarkerClustererTap!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+        },
+      );
+    }
+
+    /// [onMarkerClustererTap] 콜백 등록
+    if (widget.onMarkerClustererTap != null) {
+      await controller.addJavaScriptChannel(
+        'onMarkerClustererTap',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onMarkerClustererTap!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
           );
-        }
-      })
-      ..addJavaScriptChannel('onCustomOverlayTap',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onCustomOverlayTap != null) {
-          widget.onCustomOverlayTap!(
-            jsonDecode(result.message)['customOverlayId'],
-            LatLng.fromJson(jsonDecode(result.message)),
+        },
+      );
+    }
+
+    /// [onCustomOverlayTap] 콜백 등록
+    if (widget.onCustomOverlayTap != null) {
+      await controller.addJavaScriptChannel(
+        'onCustomOverlayTap',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onCustomOverlayTap!(
+            map['customOverlayId'] as String,
+            LatLng.fromJson(map),
           );
-        }
-      })
-      ..addJavaScriptChannel('onMarkerDragChangeCallback',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onMarkerDragChangeCallback != null) {
-          widget.onMarkerDragChangeCallback!(
-            jsonDecode(result.message)['markerId'],
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
-            jsonDecode(result.message)['drag'] == 'dragstart'
+        },
+      );
+    }
+
+    /// [onMarkerDragChangeCallback] 콜백 등록
+    if (widget.onMarkerDragChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'onMarkerDragChangeCallback',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onMarkerDragChangeCallback!(
+            map['markerId'] as String,
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
+            map['drag'] == 'dragstart'
                 ? MarkerDragType.start
                 : MarkerDragType.end,
           );
-        }
-      })
-      ..addJavaScriptChannel('zoomStart',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onZoomChangeCallback != null) {
-          widget.onZoomChangeCallback!(
-            jsonDecode(result.message)['zoomLevel'],
-            ZoomType.start,
-          );
-        }
-      })
-      ..addJavaScriptChannel('zoomChanged',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onZoomChangeCallback != null) {
-          widget.onZoomChangeCallback!(
-            jsonDecode(result.message)['zoomLevel'],
-            ZoomType.end,
-          );
-        }
-      })
-      ..addJavaScriptChannel('centerChanged',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onCenterChangeCallback != null) {
-          widget.onCenterChangeCallback!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
-          );
-        }
-      })
-      ..addJavaScriptChannel('boundsChanged',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onBoundsChangeCallback != null) {
-          final latLngBounds = jsonDecode(result.message);
+        },
+      );
 
-          final sw = latLngBounds['sw'];
-          final ne = latLngBounds['ne'];
+      await controller.addJavaScriptChannel(
+        'dragStart',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
 
-          widget.onBoundsChangeCallback!(LatLngBounds(
-            LatLng(sw['latitude'], sw['longitude']),
-            LatLng(ne['latitude'], ne['longitude']),
-          ));
-        }
-      })
-      ..addJavaScriptChannel('dragStart',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onDragChangeCallback != null) {
-          widget.onDragChangeCallback!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+          return widget.onDragChangeCallback!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
             DragType.start,
           );
-        }
-      })
-      ..addJavaScriptChannel('drag',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onDragChangeCallback != null) {
-          widget.onDragChangeCallback!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+        },
+      );
+
+      await controller.addJavaScriptChannel(
+        'drag',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onDragChangeCallback!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
             DragType.move,
           );
-        }
-      })
-      ..addJavaScriptChannel('dragEnd',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onDragChangeCallback != null) {
-          widget.onDragChangeCallback!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+        },
+      );
+
+      await controller.addJavaScriptChannel(
+        'dragEnd',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onDragChangeCallback!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
             DragType.end,
           );
-        }
-      })
-      ..addJavaScriptChannel('cameraIdle',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onCameraIdle != null) {
-          widget.onCameraIdle!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+        },
+      );
+    }
+
+    /// [onZoomChangeCallback] 콜백 등록
+    if (widget.onZoomChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'zoomStart',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onZoomChangeCallback!(
+            map['zoomLevel'] as int,
+            ZoomType.start,
           );
-        }
-      })
-      ..addJavaScriptChannel('tilesLoaded',
-          onMessageReceived: (JavaScriptMessage result) {
-        if (widget.onTilesLoadedCallback != null) {
-          widget.onTilesLoadedCallback!(
-            LatLng.fromJson(jsonDecode(result.message)),
-            jsonDecode(result.message)['zoomLevel'],
+        },
+      );
+
+      await controller.addJavaScriptChannel(
+        'zoomChanged',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onZoomChangeCallback!(
+            map['zoomLevel'] as int,
+            ZoomType.end,
           );
-        }
-      });
+        },
+      );
+    }
+
+    /// [onCenterChangeCallback] 콜백 등록
+    if (widget.onCenterChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'centerChanged',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onCenterChangeCallback!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
+          );
+        },
+      );
+    }
+
+    /// [onBoundsChangeCallback] 콜백 등록
+    if (widget.onBoundsChangeCallback != null) {
+      await controller.addJavaScriptChannel(
+        'boundsChanged',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onBoundsChangeCallback!(
+            LatLngBounds(
+              LatLng.fromJson(map['sw'] as Map<String, dynamic>),
+              LatLng.fromJson(map['ne'] as Map<String, dynamic>),
+            ),
+          );
+        },
+      );
+    }
+
+    /// [onCameraIdle] 콜백 등록
+    if (widget.onCameraIdle != null) {
+      await controller.addJavaScriptChannel(
+        'cameraIdle',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onCameraIdle!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
+          );
+        },
+      );
+    }
+
+    /// [onTilesLoadedCallback] 콜백 등록
+    if (widget.onTilesLoadedCallback != null) {
+      await controller.addJavaScriptChannel(
+        'tilesLoaded',
+        onMessageReceived: (result) {
+          final map = jsonDecode(result.message) as Map<String, Object?>;
+
+          return widget.onTilesLoadedCallback!(
+            LatLng.fromJson(map),
+            map['zoomLevel'] as int,
+          );
+        },
+      );
+    }
   }
 }
