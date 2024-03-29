@@ -56,27 +56,33 @@ class KakaoMapController {
   }
 
   /// draw markers
-  Future<void> addMarker({List<Marker>? markers}) async {
-    if (markers != null) {
-      await clearMarker();
+  Future<void> addMarker({
+    List<Marker>? markers,
+    bool isCleared = true,
+  }) async {
+    if (markers == null) return;
 
-      for (var marker in markers) {
-        final markerString =
-            "addMarker('${marker.markerId}', '${jsonEncode(marker.latLng)}', ${marker.draggable}, '${marker.width}', '${marker.height}', '${marker.offsetX}', '${marker.offsetY}', '${marker.markerImageSrc}', '${marker.infoWindowContent}', ${marker.infoWindowRemovable}, ${marker.infoWindowFirstShow})";
-        await _webViewController.runJavaScript(markerString);
-      }
+    if (isCleared) await clearMarker();
+
+    for (var marker in markers) {
+      final markerString =
+          "addMarker('${marker.markerId}', '${jsonEncode(marker.latLng)}', ${marker.draggable}, '${marker.width}', '${marker.height}', '${marker.offsetX}', '${marker.offsetY}', '${marker.markerImageSrc}', '${marker.infoWindowContent}', ${marker.infoWindowRemovable}, ${marker.infoWindowFirstShow})";
+      await _webViewController.runJavaScript(markerString);
     }
   }
 
   /// draw markers
-  Future<void> addMarkerClusterer({Clusterer? clusterer}) async {
-    if (clusterer != null) {
-      await clearMarkerClusterer();
+  Future<void> addMarkerClusterer({
+    Clusterer? clusterer,
+    bool isCleared = true,
+  }) async {
+    if (clusterer == null) return;
 
-      final clustererString =
-          "addMarkerClusterer('${jsonEncode(clusterer.markers)}', ${clusterer.gridSize}, ${clusterer.averageCenter}, ${clusterer.disableClickZoom}, ${clusterer.minLevel}, ${clusterer.minClusterSize}, '${jsonEncode(clusterer.texts)}', '${jsonEncode(clusterer.calculator)}', '${jsonEncode(clusterer.styles)}')";
-      await _webViewController.runJavaScript(clustererString);
-    }
+    if (isCleared) await clearMarkerClusterer();
+
+    final clustererString =
+        "addMarkerClusterer('${jsonEncode(clusterer.markers)}', ${clusterer.gridSize}, ${clusterer.averageCenter}, ${clusterer.disableClickZoom}, ${clusterer.minLevel}, ${clusterer.minClusterSize}, '${jsonEncode(clusterer.texts)}', '${jsonEncode(clusterer.calculator)}', '${jsonEncode(clusterer.styles)}')";
+    await _webViewController.runJavaScript(clustererString);
   }
 
   /// change marker draggable
