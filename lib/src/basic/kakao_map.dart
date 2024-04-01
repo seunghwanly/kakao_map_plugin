@@ -539,12 +539,6 @@ class _KakaoMapState extends State<KakaoMap> {
       });
     }
 
-    if (infoWindowFirstShow) {
-      if (infoWindow != null) {
-        infoWindow.open(map, marker);
-      }
-    }
-
     if (draggable && ${widget.onMarkerDragChangeCallback != null}) {
 
       kakao.maps.event.addListener(marker, 'dragstart', function () {
@@ -600,6 +594,12 @@ class _KakaoMapState extends State<KakaoMap> {
 
     // 마커가 지도 위에 표시되도록 설정합니다
     marker.setMap(map);
+
+    // 마커가 지도 위에 표시된 이후, 인포윈도우가 있다면 표기해줍니다.
+    if (infoWindowFirstShow && infoWindow != null) {
+      infoWindow.open(map, marker);
+    }
+
     markers.push(marker);
   }
 
