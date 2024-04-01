@@ -1212,11 +1212,16 @@ class _KakaoMapState extends State<KakaoMap> {
           }
           final map = decoded as Map<String, Object?>;
 
+          final sw = map['sw'] as Map<String, dynamic>;
+          final ne = map['ne'] as Map<String, dynamic>;
+
+          if (sw['latitude'] == null ||
+              sw['longitude'] == null ||
+              ne['latitude'] == null ||
+              ne['longitude'] == null) return;
+
           return widget.onBoundsChangeCallback!(
-            LatLngBounds(
-              LatLng.fromJson(map['sw'] as Map<String, dynamic>),
-              LatLng.fromJson(map['ne'] as Map<String, dynamic>),
-            ),
+            LatLngBounds(LatLng.fromJson(sw), LatLng.fromJson(ne)),
           );
         },
       );
