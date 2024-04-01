@@ -13,7 +13,7 @@ String _htmlWrapper(String script) {
 
   <style>
     * {
-      font-family: 'Pretendard';
+      font-family: 'Pretendard Variable';
     }
   </style>
 </head>
