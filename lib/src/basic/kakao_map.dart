@@ -1206,15 +1206,18 @@ class _KakaoMapState extends State<KakaoMap> {
       await controller.addJavaScriptChannel(
         'boundsChanged',
         onMessageReceived: (result) {
-          final latLngBounds = jsonDecode(result.message);
+          var decoded = jsonDecode(result.message);
+          if (decoded is String) {
+            decoded = jsonDecode(decoded);
+          }
+          final map = decoded as Map<String, Object?>;
 
-          final sw = latLngBounds['sw'];
-          final ne = latLngBounds['ne'];
-
-          return widget.onBoundsChangeCallback!(LatLngBounds(
-            LatLng(sw['latitude'], sw['longitude']),
-            LatLng(ne['latitude'], ne['longitude']),
-          ));
+          return widget.onBoundsChangeCallback!(
+            LatLngBounds(
+              LatLng.fromJson(map['sw'] as Map<String, dynamic>),
+              LatLng.fromJson(map['ne'] as Map<String, dynamic>),
+            ),
+          );
         },
       );
     }
