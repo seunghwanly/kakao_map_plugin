@@ -7,8 +7,6 @@ class KakaoMapController {
 
   KakaoMapController(this._webViewController);
 
-  final Set<String> _markerIds = {};
-
   /// draw polylines
   addPolyline({List<Polyline>? polylines}) async {
     if (polylines != null) {
@@ -60,32 +58,25 @@ class KakaoMapController {
   /// draw markers
   Future<void> addMarker({
     List<Marker>? markers,
-    bool isCleared = true,
   }) async {
     if (markers == null) return;
 
-    if (isCleared) {
-      await clearMarker();
-      _markerIds.clear();
-    }
+    await clearMarker();
 
     for (var marker in markers) {
-      if (_markerIds.contains(marker.markerId)) continue;
       final markerString =
           "addMarker('${marker.markerId}', '${jsonEncode(marker.latLng)}', ${marker.draggable}, '${marker.width}', '${marker.height}', '${marker.offsetX}', '${marker.offsetY}', '${marker.markerImageSrc}', '${marker.infoWindowContent}', ${marker.infoWindowRemovable}, ${marker.infoWindowFirstShow})";
       await _webViewController.runJavaScript(markerString);
-      _markerIds.add(marker.markerId);
     }
   }
 
   /// draw markers
   Future<void> addMarkerClusterer({
     Clusterer? clusterer,
-    bool isCleared = true,
   }) async {
     if (clusterer == null) return;
 
-    if (isCleared) await clearMarkerClusterer();
+    await clearMarkerClusterer();
 
     final clustererString =
         "addMarkerClusterer('${jsonEncode(clusterer.markers)}', ${clusterer.gridSize}, ${clusterer.averageCenter}, ${clusterer.disableClickZoom}, ${clusterer.minLevel}, ${clusterer.minClusterSize}, '${jsonEncode(clusterer.texts)}', '${jsonEncode(clusterer.calculator)}', '${jsonEncode(clusterer.styles)}')";

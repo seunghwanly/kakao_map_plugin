@@ -628,7 +628,7 @@ class _KakaoMapState extends State<KakaoMap> {
         marker?.height,
         marker?.offsetX,
         marker?.offsetY,
-        marker?.imageSrc,
+        marker?.markerImageSrc,
         marker?.infoWindowText,
         marker?.infoWindowRemovable,
         marker?.infoWindowFirstShow
